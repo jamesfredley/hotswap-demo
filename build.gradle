@@ -91,8 +91,6 @@ dependencies {
     hotswapAgent "org.hotswapagent:hotswap-agent:2.0.2"
 }
 
-compileJava.options.release = 17
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
