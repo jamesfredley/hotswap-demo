@@ -46,6 +46,14 @@ repositories {
     }
 }
 
+configurations {
+    hotswapAgent {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+}
+
 dependencies {
     profile "org.apache.grails.profiles:web"
     testAndDevelopmentOnly "org.webjars.npm:bootstrap"
@@ -80,9 +88,50 @@ dependencies {
     testImplementation "org.apache.grails:grails-testing-support-datamapping"
     testImplementation "org.apache.grails:grails-testing-support-web"
     testImplementation "org.spockframework:spock-core"
+    hotswapAgent "org.hotswapagent:hotswap-agent:2.0.2"
 }
 
 compileJava.options.release = 17
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+        vendor = JvmVendorSpec.JETBRAINS
+    }
+}
+
+tasks.register('downloadHotswapAgent') {
+    description = 'Resolves HotswapAgent JAR from Maven Central and places it in the toolchain JDK\'s lib/hotswap directory'
+    group = 'build'
+
+    def targetDir = new File(project.services.get(JavaToolchainService)
+            .launcherFor(java.toolchain).get().metadata.installationPath.asFile,
+            'lib/hotswap')
+
+    def targetFile = new File(targetDir, 'hotswap-agent.jar')
+
+    inputs.file configurations.hotswapAgent.singleFile
+    outputs.file targetFile
+
+    doLast {
+        targetDir.mkdirs()
+
+        def agentJar = configurations.hotswapAgent.singleFile
+
+        // Copy and rename to hotswap-agent.jar
+        println "Resolving HotswapAgent ${agentJar.name} from Maven Central and copying to $targetFile"
+        copy {
+            from agentJar
+            into targetDir
+            rename agentJar.name, 'hotswap-agent.jar'
+        }
+    }
+}
+
+bootRun {
+    jvmArgs = ['-XX:+AllowEnhancedClassRedefinition', '-XX:HotswapAgent=fatjar']
+    dependsOn 'downloadHotswapAgent'
+}
 
 tasks.withType(Test) {
     useJUnitPlatform()
