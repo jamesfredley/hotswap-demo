@@ -99,7 +99,7 @@ java {
 }
 
 tasks.register('downloadHotswapAgent') {
-    description = 'Resolves HotswapAgent JAR from Maven Central and places it in the toolchain JDK\'s lib/hotswap directory'
+    description = 'Copies HotswapAgent JAR to the toolchain JDK\'s lib/hotswap directory'
     group = 'build'
 
     def targetDir = new File(project.services.get(JavaToolchainService)
@@ -108,20 +108,20 @@ tasks.register('downloadHotswapAgent') {
 
     def targetFile = new File(targetDir, 'hotswap-agent.jar')
 
-    inputs.file configurations.hotswapAgent.singleFile
+    def sourceFile = file('lib/hotswap-agent.jar')
+
+    inputs.file sourceFile
     outputs.file targetFile
 
     doLast {
         targetDir.mkdirs()
 
-        def agentJar = configurations.hotswapAgent.singleFile
-
         // Copy and rename to hotswap-agent.jar
-        println "Resolving HotswapAgent ${agentJar.name} from Maven Central and copying to $targetFile"
+        println "Copying ${sourceFile} to $targetFile"
         copy {
-            from agentJar
+            from sourceFile
             into targetDir
-            rename agentJar.name, 'hotswap-agent.jar'
+            rename sourceFile.name, 'hotswap-agent.jar'
         }
     }
 }
