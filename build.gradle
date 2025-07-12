@@ -129,7 +129,7 @@ tasks.register('downloadHotswapAgent') {
 }
 
 bootRun {
-    jvmArgs = ['-XX:+AllowEnhancedClassRedefinition', '-XX:HotswapAgent=fatjar']
+    jvmArgs = ['-XX:+AllowEnhancedClassRedefinition', '-XX:HotswapAgent=fatjar', "-javaagent:lib/groovyReset.jar"]
     dependsOn 'downloadHotswapAgent'
 }
 
