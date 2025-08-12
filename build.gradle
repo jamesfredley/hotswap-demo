@@ -98,7 +98,8 @@ java {
     }
 }
 
-tasks.register('downloadHotswapAgent') {
+def downloadHotswapAgentTask = project.tasks.register('downloadHotswapAgent')
+downloadHotswapAgentTask.configure {
     description = 'Resolves HotswapAgent JAR from Maven Central and places it in the toolchain JDK\'s lib/hotswap directory'
     group = 'build'
 
@@ -115,9 +116,10 @@ tasks.register('downloadHotswapAgent') {
         targetDir.mkdirs()
 
         def agentJar = configurations.hotswapAgent.singleFile
-
-        // Copy and rename to hotswap-agent.jar
-        println "Resolving HotswapAgent ${agentJar.name} from Maven Central and copying to $targetFile"
+        if (!agentJar.exists()) {
+            throw new GradleException("HotswapAgent JAR not found: ${agentJar.absolutePath}")
+        }
+        logger.lifecycle "Resolving HotswapAgent ${agentJar.name} from Maven Central and copying to $targetFile"
         copy {
             from agentJar
             into targetDir
@@ -126,9 +128,34 @@ tasks.register('downloadHotswapAgent') {
     }
 }
 
-bootRun {
-    jvmArgs = ['-XX:+AllowEnhancedClassRedefinition', '-XX:HotswapAgent=fatjar', "-javaagent:lib/groovyReset.jar"]
-    dependsOn 'downloadHotswapAgent'
+def grAgentTargetDir = new File(project.layout.buildDirectory.get().asFile, 'gragent')
+def grAgentTargetFile = new File(grAgentTargetDir, 'gragent.jar')
+
+def downloadGrAgentTask = project.tasks.register('downloadGrAgent')
+downloadGrAgentTask.configure {
+    description = 'Downloads the Gragent JAR from GitHub and places it in the build directory'
+    group = 'build'
+
+    outputs.file grAgentTargetFile
+
+    doLast {
+        if (!grAgentTargetDir.exists()) {
+            grAgentTargetDir.mkdirs()
+        }
+        logger.lifecycle "Downloading Gragent JAR to ${grAgentTargetFile.absolutePath}"
+        new URL('https://github.com/JetBrains/intellij-community/raw/refs/heads/master/plugins/groovy/hotswap/gragent.jar').withInputStream { input ->
+            grAgentTargetFile.withOutputStream { output ->
+                output << input
+            }
+        }
+    }
+}
+
+bootRun.configure {
+    logger.lifecycle "Running Grails application with " + System.getProperty('java.vendor') + " JDK " + System.getProperty('java.version') + ", HotswapAgent and Gragent for enhanced class redefinition"
+
+    jvmArgs = ['-XX:+AllowEnhancedClassRedefinition', '-XX:HotswapAgent=fatjar', "-javaagent:${grAgentTargetFile}"]
+    dependsOn downloadGrAgentTask, downloadHotswapAgentTask
 }
 
 tasks.withType(Test) {
@@ -149,4 +176,3 @@ assets {
             'webjars/bootstrap-icons/*/font/fonts/*',
     ]
 }
-
